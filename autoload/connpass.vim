@@ -12,7 +12,6 @@ let s:connpass_req_params = [
   \ 'nickname=', 'owner_nickname', 'series_id', 'start'
   \]
 
-let s:result_list = []
 let s:result_events = []
 
 function! s:build_query(args)
@@ -51,25 +50,9 @@ function! connpass#search(...)
     let query = printf('?%s', query)
   endif
   let uri = s:connpass_uri . query
-  call s:connpass_list(uri)
-endfunction
 
-function! s:connpass_list(uri)
-  " This function copy lots from toggeter-vim.
-  " see https://github.com/mattn/togetter-vim/blob/master/plugin/togetter.vim#L44
-  let winnum = bufwinnr(bufnr('^Connpass$'))
-  if winnum != -1
-    if winnum != bufwinnr('%')
-      echomsg 'foo'
-      exe winnum 'wincmd w'
-    endif
-  else
-    exec 'silent noautocmd split Connpass'
-  endif
-  setlocal modifiable
-  silent %d
   redraw | echo "fetching feed..."
-  let response = webapi#http#get(a:uri)
+  let response = webapi#http#get(uri)
   let content = webapi#json#decode(response.content)
   let results_available = content['results_available']
 
@@ -77,45 +60,13 @@ function! s:connpass_list(uri)
   let s:result_events = copy(content['events'])
   let events = content['events']
 
-  call setline(1, map(events, 'v:val["title"]." : ".v:val["owner_nickname"]'))
-  let s:result_list = events
-  setlocal buftype=nofile bufhidden=delete noswapfile
-  setlocal nomodified
-  setlocal nomodifiable
-  nmapclear <buffer>
-  syntax clear
-  syntax match SpecialKey /[\x21-\x7f]\+$/
-  nnoremap <silent> <buffer> <cr> :call <SID>connpass_detail()<cr>
-  nnoremap <silent> <buffer> q :close<cr>
-  redraw | echo ""
+  call s:connpass_list(events)
+  redraw | echo ''
 endfunction
 
-function! s:connpass_detail()
-  let line = line('.') - 1
-  let event = s:result_events[line]
-  let event_id = event['event_id']
-  let title = event['title']
-  let catch = event['catch']
-  let description = webapi#html#decodeEntityReference(substitute(event['description'], '<[\/]*.\{-}>', '', 'g'))
-  let event_url = event['event_url']
-
-  let lines = ''
-  let lines .= 'Title: ' . title . ' Event id: ' . event_id . "\n"
-  let lines .= 'Owner: ' . event['owner_nickname'] . "\n"
-  let lines .= 'Start: ' . event['started_at'] . ' End: ' . event['ended_at'] . "\n"
-  let lines .= 'Address: ' . event['address'] . ' ' . event['place'] . "\n"
-  let lines .= 'Accepted / Limit: ' . event['accepted'] . ' / ' . event['limit'] . "\n"
-  let lines .= 'Waiting: ' . event['waiting'] . "\n"
-  let lines .= 'Event type: ' . event['event_type'] . "\n"
-
-  let lines .= 'Hash Tag: ' . event['hash_tag'] . "\n"
-  let lines .= 'Catch: ' . catch . "\n"
-  let lines .= 'Url: ' . event_url . "\n"
-
-  let lines .= 'Description:' . "\n"
-  let lines .= '------------' . "\n"
-  let lines .=  description . "\n"
-
+function! s:connpass_list(events)
+  " This function copy lots from toggeter-vim.
+  " see https://github.com/mattn/togetter-vim/blob/master/plugin/togetter.vim#L44
   let winnum = bufwinnr(bufnr('^Connpass$'))
   if winnum != -1
     if winnum != bufwinnr('%')
@@ -126,19 +77,88 @@ function! s:connpass_detail()
   endif
   setlocal modifiable
   silent %d
+
+  call setline(1, map(deepcopy(a:events), 'v:val["title"]." : ".v:val["owner_nickname"]'))
+
+  setlocal buftype=nofile bufhidden=delete noswapfile
+  setlocal nomodified
+  setlocal nomodifiable
+  nmapclear <buffer>
+  auto CursorMoved <buffer> setlocal cursorline
+  syntax clear
+  syntax match SpecialKey /[\x21-\x7f]\+$/
+  nnoremap <silent> <buffer> <cr> :call <SID>connpass_detail()<cr>
+  nnoremap <silent> <buffer> q :close<cr>
+endfunction
+
+function! s:connpass_detail()
+  let line = line('.') - 1
+  let event = s:result_events[line]
+  let event_id = event['event_id']
+  let title = event['title']
+
+  let description = webapi#html#decodeEntityReference(substitute(event['description'], '<[\/]*.\{-}>', '', 'g'))
+  let event_url = event['event_url']
+  let place = substitute(event['place'], '\s\+$', '', 'g')
+
+  let lines = ''
+  let lines .= 'Title      : ' . title . ' Event id: ' . event_id . "\n"
+  let lines .= 'Owner      : ' . event['owner_nickname'] . "\n"
+  let lines .= 'Start      : ' . event['started_at'] . ' End: ' . event['ended_at'] . "\n"
+  let lines .= 'Address    : ' . event['address'] . ' ' . place . "\n"
+  let lines .= 'Accepted   : ' . event['accepted'] . "\n"
+  let lines .= 'Limit      : ' . event['limit'] . "\n"
+  let lines .= 'Waiting    : ' . event['waiting'] . "\n"
+  let lines .= 'Event type : ' . event['event_type'] . "\n"
+  let lines .= substitute('Hash Tag   : ' . event['hash_tag'], '\s\+$', '', 'g') . "\n"
+  let lines .= substitute('Catch      : ' . event['catch'], '\s\+$', '', 'g') . "\n"
+  let lines .= 'Url        : ' . event_url . "\n"
+  let lines .= substitute('Description: ', '\s\+$', '', 'g') . "\n"
+  let lines .= '------------' . "\n"
+  let lines .= description
+
+  let winnum = bufwinnr(bufnr('^Connpass$'))
+  if winnum != -1
+    if winnum != bufwinnr('%')
+      exe winnum 'wincmd w'
+    endif
+  else
+    exec 'silent noautocmd split Connpass'
+  endif
+
+  setlocal modifiable
+  redraw | echo 'Show detail...'
+  silent %d
+
+
   silent put!= lines
   normal! Ggg
 
   setlocal buftype=nofile bufhidden=hide noswapfile
   setlocal nomodified
   setlocal nomodifiable
+  auto CursorMoved <buffer> call s:cursor_moved()
   syntax clear
   syntax match Constant /^[a-zA-Z0-9_]*$/
   syntax match SpecialKey /^-\+$/
   syntax match Type /\<\(http\|https\|ftp\):\/\/[\x21-\x7f]\+/
   nmapclear <buffer>
   nnoremap <silent> <buffer> q :close<cr>
-  redraw | echo ""
+  nnoremap <silent> <buffer> b :call <SID>back_to_list()<cr>
+  redraw | echo ''
+endfunction
+
+function! s:back_to_list()
+  call s:connpass_list(s:result_events)
+endfunction
+
+function! s:cursor_moved()
+  let l = line('.')
+  if l > 13
+    setlocal nocursorline
+  else
+    setlocal cursorline
+  endif
 endfunction
 
 let &cpo = s:save_cpo
