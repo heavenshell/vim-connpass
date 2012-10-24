@@ -36,3 +36,8 @@ You can hit `q` to close connpass buffer.
 
 In event detail buffer, you can use `b` as back to search list.
 And alos you can use `q` to close buffer.
+
+
+Requirement
+-----------
+This plugin need [webapi-vim](https://github.com/mattn/webapi-vim).
