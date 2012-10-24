@@ -55,11 +55,12 @@ function! connpass#search(...)
 endfunction
 
 function! s:connpass_list(uri)
-  " This function copy a lot from toggeter-vim.
+  " This function copy lots from toggeter-vim.
   " see https://github.com/mattn/togetter-vim/blob/master/plugin/togetter.vim#L44
   let winnum = bufwinnr(bufnr('^Connpass$'))
   if winnum != -1
     if winnum != bufwinnr('%')
+      echomsg 'foo'
       exe winnum 'wincmd w'
     endif
   else
@@ -78,14 +79,14 @@ function! s:connpass_list(uri)
 
   call setline(1, map(events, 'v:val["title"]." : ".v:val["owner_nickname"]'))
   let s:result_list = events
-  setlocal buftype=nofile bufhidden=hide noswapfile
+  setlocal buftype=nofile bufhidden=delete noswapfile
   setlocal nomodified
   setlocal nomodifiable
   nmapclear <buffer>
   syntax clear
   syntax match SpecialKey /[\x21-\x7f]\+$/
   nnoremap <silent> <buffer> <cr> :call <SID>connpass_detail()<cr>
-  nnoremap <silent> <buffer> <q> :hide <cr>
+  nnoremap <silent> <buffer> q :close<cr>
   redraw | echo ""
 endfunction
 
@@ -136,6 +137,7 @@ function! s:connpass_detail()
   syntax match SpecialKey /^-\+$/
   syntax match Type /\<\(http\|https\|ftp\):\/\/[\x21-\x7f]\+/
   nmapclear <buffer>
+  nnoremap <silent> <buffer> q :close<cr>
   redraw | echo ""
 endfunction
 
